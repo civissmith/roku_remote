@@ -104,12 +104,14 @@ def launch( channel ):
       try:
          code = requests.post(roku_addr + "/launch/" + channels[channel].strip('"'))
       except KeyError as err:
-         sys.stderr.write( '"%s" is not a valid channel!\n' % channel )
-         sys.stderr.write( 'Please update your saved channel configuration.\n\n')
-         sys.stderr.write( 'Valid channels:\n' )
+         # Ensure that the button text will change even if there is no stderr.
          button = rcbutton.set_label("ERROR!")
-         for chan in channels:
-            sys.stderr.write( ' - "%s"\n' % chan )
+         if sys.stderr:
+            sys.stderr.write( '"%s" is not a valid channel!\n' % channel )
+            sys.stderr.write( 'Please update your saved channel configuration.\n\n')
+            sys.stderr.write( 'Valid channels:\n' )
+            for chan in channels:
+               sys.stderr.write( ' - "%s"\n' % chan )
          return
 
    # Return the callback
