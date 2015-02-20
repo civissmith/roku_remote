@@ -70,7 +70,7 @@ class App( object ):
       self.config_path = op.join(op.expanduser('~'), '.roku_remote')
       self.launcher_file = op.join(self.config_path, 'launchers.yml')
       self.device_file = op.join(self.config_path, 'default_device.yml')
-      self.icon_file = op.join(self.config_path, 'icons', 'roku.png')
+      self.icon_file = op.join(self.config_path, 'icons', 'roku.svg')
 
       self.config_files = {
          'device': self.device_file,
