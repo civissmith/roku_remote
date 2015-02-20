@@ -16,6 +16,7 @@ of cases where there is no wrapper - just to make reading the code easier.
 If no launchers are found in the launcher config file, the buttons will not be drawn at all.
 
 **Device Selection Window**
+
 ![Device List](device_dialog.png?raw=true "Roku Screenshot")
 
 The device selection window is implemented in rokulib.py. It is spawned by a call to rokulib.choose_device().
