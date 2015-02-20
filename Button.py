@@ -45,33 +45,33 @@ class RCButton( gtk.Button):
 
 
    def __init__(self, label=None):
-      """
-      Initializes a button. Button position and size wll be set by
-      rokulib.
-      """
+       """
+       Initializes a button. Button position and size wll be set by
+       rokulib.
+       """
 
-      # Call the Button init method so class is seen as GTK Widget.
-      super(RCButton, self).__init__()
-      self.label = label
-      self.handler=None
+       # Call the Button init method so class is seen as GTK Widget.
+       super(RCButton, self).__init__()
+       self.label = label
+       self.handler=None
 
 
    def register( self, string ):
-      """
-      Register the button to the appropriate callback.
-      """
+       """
+       Register the button to the appropriate callback.
+       """
 
-      string   = string.split()
-      command  = string[0].lower()
-      argument = " ".join( string[1:] )
+       string   = string.split()
+       command  = string[0].lower()
+       argument = " ".join( string[1:] )
 
-      # Keypress commands should be in format 'keypress button'
-      if command == "keypress":
-         self.connect( "clicked", keypress( argument ))
+       # Keypress commands should be in format 'keypress button'
+       if command == "keypress":
+           self.connect( "clicked", keypress( argument ))
 
-      elif command == "launch":
-         self.handler = self.connect( "clicked", launch( argument ))
+       elif command == "launch":
+           self.handler = self.connect( "clicked", launch( argument ))
 
-      else:
-         error = '"%s" is not a valid command.' % command
-         raise SyntaxError, error
+       else:
+           error = '"%s" is not a valid command.' % command
+           raise SyntaxError, error
