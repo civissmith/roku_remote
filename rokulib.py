@@ -188,6 +188,9 @@ def layout_remote_buttons( buttons ):
    Positions buttons in a fixed location.
    """
 
+   global launchers
+   if not launchers:
+      launchers = { 0: Launcher("Empty"), 1: Launcher("Empty"), 2: Launcher("Empty") }
 
    def add_image( button, image ):
       im = gtk.Image()
@@ -211,6 +214,8 @@ def layout_remote_buttons( buttons ):
    utl_lnch_col = 100
    utl_lnch_row_off = 70
    utl_lnch_col_off = 100
+   launch_count = 0
+   launch_bias  = -1
 
    # Lay the pattern and adjust labels as needed.
    for each in buttons:
@@ -240,29 +245,19 @@ def layout_remote_buttons( buttons ):
          this_button.y_pos = utl_lnch_row - utl_lnch_row_off
          add_image( this_button, gtk.STOCK_FIND )
          continue
+
       # Launchers
-      if launchers:
-         if this_button.label == "launcher_0":
-            this_button.x_pos = utl_lnch_col - utl_lnch_col_off
-            this_button.y_pos = utl_lnch_row + utl_lnch_row_off
-            this_button.set_label( launchers[0].disp_name )
-            this_button.register("launch %s" % launchers[0].chan_name )
-            launchers[0].button_ref = this_button
-            continue
-         if this_button.label == "launcher_1":
-            this_button.x_pos = utl_lnch_col
-            this_button.y_pos = utl_lnch_row + utl_lnch_row_off
-            this_button.set_label( launchers[1].disp_name )
-            this_button.register("launch %s" % launchers[1].chan_name )
-            launchers[1].button_ref = this_button
-            continue
-         if this_button.label == "launcher_2":
-            this_button.x_pos = utl_lnch_col + utl_lnch_col_off
-            this_button.y_pos = utl_lnch_row + utl_lnch_row_off
-            this_button.set_label( launchers[2].disp_name )
-            this_button.register("launch %s" % launchers[2].chan_name )
-            launchers[2].button_ref = this_button
-            continue
+      if "launcher" in this_button.label:
+
+         this_button.x_pos = utl_lnch_col + (utl_lnch_col_off * launch_bias)
+         this_button.y_pos = utl_lnch_row + utl_lnch_row_off
+
+         this_button.set_label( launchers[launch_count].disp_name )
+         this_button.register("launch %s" % launchers[launch_count].chan_name )
+         launchers[launch_count].button_ref = this_button
+         launch_count += 1
+         launch_bias  += 1
+         continue
 
       # D-Pad
       if this_button.label == "Up":
@@ -373,7 +368,17 @@ def choose_device( main_window, config_files ):
    # Get a list of the Roku devices on the network.
    rokus = []
    find_complete = threading.Event()
-   find_thread = threading.Thread(target=find_rokus, args=('eth0', rokus, find_complete ))
+
+   # Guess which Ethernet interface to use.
+   eth_if = detect_ethernet()
+
+   # No interface could be found. Stop.
+   if eth_if == 'NO_IF':
+      label.set_text( "No Network Interface Found!")
+      save.hide()
+      return
+
+   find_thread = threading.Thread(target=find_rokus, args=(eth_if, rokus, find_complete ))
    find_thread.start()
 
    # Wait for the find thread to report completion.
@@ -607,6 +612,8 @@ def choose_launchers( main_window, config_files ):
 
    if not launchers:
       launchers = { 0: Launcher("Empty"), 1: Launcher("Empty"), 2: Launcher("Empty") }
+      for each in launchers:
+         launchers[each].button_ref = None
 
    save_button.set_size_request( 75, 35 )
    text_boxes = []
@@ -655,10 +662,11 @@ def save_launch_file( widget, data ):
       launchers[count].chan_name = text_boxes[count][1].get_text()
 
       # Reset the display name and re-register the callback for the new channel.
-      launchers[count].button_ref.set_label( launchers[count].disp_name )
-      if launchers[count].button_ref.handler:
-         launchers[count].button_ref.disconnect( launchers[count].button_ref.handler ) 
-      launchers[count].button_ref.register("launch %s" % launchers[count].chan_name )
+      if launchers[count].button_ref:
+         launchers[count].button_ref.set_label( launchers[count].disp_name )
+         if launchers[count].button_ref.handler:
+            launchers[count].button_ref.disconnect( launchers[count].button_ref.handler ) 
+         launchers[count].button_ref.register("launch %s" % launchers[count].chan_name )
 
    try:
       launch_file = open(launch_file_name, 'w')
@@ -669,3 +677,28 @@ def save_launch_file( widget, data ):
    launch_file.close()
 
    window.destroy()
+
+def detect_ethernet():
+   """
+   Uses /proc/net/dev to determine which Ethernet interface to use.
+   """
+   net_file = open('/proc/net/dev', 'r')
+   
+   # These are the first fields in rows we're not interested in.
+   rejects = ['Inter-|', 'face', 'lo:']
+   for line in net_file:
+   
+      data = line.split()
+      if data[0] in rejects:
+        continue 
+   
+      # Chop the ':' from the device name.
+      name = data[0][:-1]
+   
+      # Check for a interface that has transmitted.
+      tx_bytes = int(data[9])
+   
+      if tx_bytes > 0:
+        return name 
+
+   return 'NO_IF'

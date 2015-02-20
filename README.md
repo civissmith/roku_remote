@@ -13,7 +13,6 @@ The main window is managed mostly by the App class in App.py. One design goal wa
 window separated from the Roku-specific functions. To maintain some sort of modularity, App.py
 imports functions from rokulib.py, but calls them within a wrapper function. There are a couple
 of cases where there is no wrapper - just to make reading the code easier.
-If no launchers are found in the launcher config file, the buttons will not be drawn at all.
 
 **Device Selection Window**
 

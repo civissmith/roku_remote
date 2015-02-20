@@ -212,7 +212,7 @@ class App( object ):
 
       for each in self.buttons:
          # Treat launchers differently
-         if each in [ "launcher_0", "launcher_1", "launcher_2" ]:
+         if 'launcher' in each:
              self.buttons[each] = RCButton( each )
              self.buttons[each].set_size_request(75, 35)
              continue
