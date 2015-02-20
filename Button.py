@@ -53,6 +53,7 @@ class RCButton( gtk.Button):
       # Call the Button init method so class is seen as GTK Widget.
       super(RCButton, self).__init__()
       self.label = label
+      self.handler=None
 
 
    def register( self, string ):
@@ -69,7 +70,7 @@ class RCButton( gtk.Button):
          self.connect( "clicked", keypress( argument ))
 
       elif command == "launch":
-         self.connect( "clicked", launch( argument ))
+         self.handler = self.connect( "clicked", launch( argument ))
 
       else:
          error = '"%s" is not a valid command.' % command

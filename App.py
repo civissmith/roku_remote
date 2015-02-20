@@ -37,7 +37,9 @@ import pygtk
 pygtk.require('2.0')
 import gtk
 import os
+import sys
 import yaml
+import signal as sig
 import os.path as op
 from Button import RCButton
 
@@ -51,7 +53,6 @@ from rokulib import layout_remote_buttons
 
 __appname__ = "Roku Remote"
 __author__  = "Phil Smith"
-__version__ = "0.99"
 
 class App( object ):
    """
@@ -63,33 +64,41 @@ class App( object ):
       """
       Initialize the program state.
       """
+      # Initialize threads.
+      gtk.gdk.threads_init()
 
       self.config_path = op.join(op.expanduser('~'), '.roku_remote')
       self.launcher_file = op.join(self.config_path, 'launchers.yml')
       self.device_file = op.join(self.config_path, 'default_device.yml')
       self.icon_file = op.join(self.config_path, 'icons', 'roku.png')
 
+      self.config_files = {
+         'device': self.device_file,
+         'launcher': self.launcher_file,
+      }
 
-      # Set the default window size.
-      self.window = gtk.Window( gtk.WINDOW_TOPLEVEL )
-      self.window.set_title ( __appname__ )
+      # Set the default main window size.
+      self.main_window = gtk.Window( gtk.WINDOW_TOPLEVEL )
+      self.main_window.set_title ( __appname__ )
+
 
       # Tie to the control-specific variables.
       self.fill_libvars()
 
       # Set the starting dimensions.
-      self.window.set_size_request( 615, 330 )
-      self.window.set_border_width( 5 )
+      self.main_window.set_size_request( 585, 330 )
 
       # Inihibit resizing. size is set by the gtk.Fixed() size request.
-      self.window.set_resizable( False )
+      self.main_window.set_resizable( False )
 
       # Create the buttons to be added.
       self.create_buttons()
 
       # Create/pack the display pane.
       self.pane = gtk.Fixed()
-      self.window.add(self.pane)
+      self.main_window.add(self.pane)
+
+      self.create_menu()
 
       # Lay the labels out.
       self.layout_labels()
@@ -100,18 +109,18 @@ class App( object ):
       # Lay the buttons out.
       self.layout_buttons()
 
-      # Register the delete event so the window can close.
-      self.window.connect( "delete_event", self.terminate )
-      self.window.connect( "destroy", self.terminate )
+      # Register the delete event so the main window can close.
+      self.main_window.connect( "delete_event", self.terminate )
+      self.main_window.connect( "destroy", self.terminate )
 
-      # Show the window.
+      # Show the main window.
       self.pane.show()
-      self.window.show()
+      self.main_window.show()
 
 
    def terminate(self, widget, event=None, data=None):
       """
-      Lets the window close. Callback for the 'delete_event' and 'destroy'.
+      Lets the main window close. Callback for the 'delete_event' and 'destroy'.
       """
       gtk.main_quit()
       return False
@@ -125,6 +134,44 @@ class App( object ):
       # Run the gtk main loop.
       gtk.main()
 
+   def get_main_menu(self, window):
+      accel_group = gtk.AccelGroup()
+
+      # This function initializes the item factory.
+      # Param 1: The type of menu - can be MenuBar, Menu,
+      #          or OptionMenu.
+      # Param 2: The path of the menu.
+      # Param 3: A reference to an AccelGroup. The item factory sets up
+      #          the accelerator table while generating menus.
+      item_factory = gtk.ItemFactory(gtk.MenuBar, "<main>", accel_group)
+
+      # This method generates the menu items. Pass to the item factory
+      #  the list of menu items
+      item_factory.create_items(self.menu_items)
+
+      # Attach the new accelerator group to the window.
+      window.add_accel_group(accel_group)
+
+      # need to keep a reference to item_factory to prevent its destruction
+      self.item_factory = item_factory
+      # Finally, return the actual menu bar created by the item factory.
+      return item_factory.get_widget("<main>")
+
+
+   def create_menu(self):
+      """
+      Create the 'File' menu for the application.
+      """
+
+      self.menu_items = (
+          ( "/File/Find _Devices", "<control>D", self.menu_d_action, 0, None ),
+          ( "/File/_Launchers"   , "<control>L", self.menu_l_action, 0, None ),
+          ( "/File/Quit"    , "<control>Q", gtk.main_quit, 0, None ),
+      )
+
+      self.menu = self.get_main_menu( self.main_window )
+      self.menu.show()
+      self.pane.put(self.menu, 0 , 0)
 
    def create_buttons(self):
       """
@@ -157,15 +204,15 @@ class App( object ):
          "Play"       : button_09,
          "Fwd"        : button_10,
          "Search"     : button_11,
-         "launcher_1" : button_12,
-         "launcher_2" : button_13,
-         "launcher_3" : button_14,
+         "launcher_0" : button_12,
+         "launcher_1" : button_13,
+         "launcher_2" : button_14,
       }
 
 
       for each in self.buttons:
          # Treat launchers differently
-         if each in [ "launcher_1", "launcher_2", "launcher_3" ]:
+         if each in [ "launcher_0", "launcher_1", "launcher_2" ]:
              self.buttons[each] = RCButton( each )
              self.buttons[each].set_size_request(75, 35)
              continue
@@ -184,7 +231,7 @@ class App( object ):
       self.text_box.connect("backspace", send_backspace )
       self.text_box.show()
       self.text_box.set_size_request(520, 30)
-      self.pane.put(self.text_box, 10, 20)
+      self.pane.put(self.text_box, 10, 40)
 
 
    def layout_labels(self):
@@ -198,11 +245,11 @@ class App( object ):
       entry = gtk.Label("Keyboard Entry:")
       launch = gtk.Label("Quick Launch Controls")
 
-      self.pane.put( menu,   5,  80 )
-      self.pane.put( dpad, 400,  80 )
-      self.pane.put( play, 400, 240 )
-      self.pane.put( entry,  0,   5 )
-      self.pane.put( launch, 5, 225 )
+      self.pane.put( menu,   5, 100 )
+      self.pane.put( dpad, 400, 100 )
+      self.pane.put( play, 400, 260 )
+      self.pane.put( entry,  5,  25 )
+      self.pane.put( launch, 5, 245 )
 
       menu.show()
       dpad.show()
@@ -232,10 +279,6 @@ class App( object ):
       # Changing the names in the launcher dict will change the channel
       # Bound to the launcher.
 
-      # These vars determine where to look for launcher disp name (_label)
-      # and channel name ( _name )
-      _name  = 1
-      _label = 0
       if not op.isdir(self.config_path):
 
          # Without the directory, files can't exist.
@@ -246,24 +289,19 @@ class App( object ):
       else:
 
          # Read the launcher configuration and device configuration files.
+         launchers = None
          if op.isfile(self.launcher_file):
             lnch_file = open( self.launcher_file )
-            launchers = list( yaml.load_all( lnch_file ))
+            yaml_gen = yaml.load_all( lnch_file )
+            for single in yaml_gen:
+               launchers = single
             lnch_file.close()
 
-            launch_1 = launchers[0]
-            launch_2 = launchers[1]
-            launch_3 = launchers[2]
-            rokulib.launchers = {
-               1: rokulib.Launcher(disp_name=launch_1[_label], 
-                                   chan_name=launch_1[_name]),
- 
-               2: rokulib.Launcher(disp_name=launch_2[_label], 
-                                   chan_name=launch_2[_name]),
- 
-               3: rokulib.Launcher(disp_name=launch_3[_label], 
-                                   chan_name=launch_3[_name]),
-            }
+            if launchers == None:
+               rokulib.launchers = {}
+
+            rokulib.launchers = launchers
+                                       
          else:
             rokulib.launchers = {}
 
@@ -273,24 +311,47 @@ class App( object ):
             device_info = list( yaml.load_all( dev_file )) 
             dev_file.close()
 
-            roku_address = device_info[0]
-            roku_name    = device_info[1]
+            if len(device_info) == 2:
+                roku_address = device_info[0]
+                roku_name    = device_info[1]
+            else:
+                roku_address = ""
+                roku_name    = "NONE SELECTED"
          else:
             roku_address = ""
             roku_name    = "NONE SELECTED"
 
          if op.isfile(self.icon_file):
-            self.window.set_icon_from_file( self.icon_file )
+            self.main_window.set_icon_from_file( self.icon_file )
 
 
       # Set the roku_addr for the registration function.
       rokulib.roku_addr = roku_address
-      old_title = self.window.get_title()
-      self.window.set_title( old_title + ': %s' % roku_name )
+      old_title = self.main_window.get_title()
+      self.main_window.set_title( old_title + ': %s' % roku_name )
       if roku_address:
          rokulib.channels = rokulib.get_channels()
 
 
+   def menu_d_action( self, action, widget ):
+      """
+      Calls the appropriate function because user selected 'D' option from 'File' menu.
+      """
+      rokulib.choose_device( self.main_window, self.config_files )
+
+   def menu_l_action( self, action, widget ):
+      """
+      Calls the appropriate function because user selected 'L' option from 'File' menu.
+      """
+      rokulib.choose_launchers( self.main_window, self.config_files )
+
+def ctrl_c( context, signo ):
+   if sys.stdout:
+      sys.stdout.write("\b\b")
+      sys.stdout.write( "Quitting...\n")
+   gtk.main_quit()
+
 if __name__ == "__main__":
+   sig.signal( sig.SIGINT, ctrl_c )
    prog = App()
    prog.run()
