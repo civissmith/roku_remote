@@ -60,16 +60,17 @@ class App( object ):
    """
 
 
-    def __init__(self):
+   def __init__(self):
        """
        Initialize the program state.
        """
        # Initialize threads.
        gtk.gdk.threads_init()
  
+       self.config_path = op.join(op.expanduser('~'), '.roku_remote')
+
        self.icon_file     = op.join(self.config_path, 'icons', 'roku.svg')
        self.device_file   = op.join(self.config_path, 'default_device.yml')
-       self.config_path   = op.join(op.expanduser('~'), '.roku_remote')
        self.launcher_file = op.join(self.config_path, 'launchers.yml')
  
        self.config_files = {
